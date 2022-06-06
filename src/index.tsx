@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 // import * as d3 from "d3";
-// import style from './index.less';
+import './index.less';
 
 // Delete me
 export const InbizGraph = () => {
@@ -9,7 +9,7 @@ export const InbizGraph = () => {
   }, []);
 
   return <div className={'graph'}>
-    <div className='box'>内容</div>
+    <div className={'box'}>内容</div>
     <svg width={600} height={600}>
       <g>
         <circle cx={60} cy={60} r="50" fill="green"></circle>
