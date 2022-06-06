@@ -1,12 +1,13 @@
 import 'react-app-polyfill/ie11';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { Thing } from '../.';
+import { InbizGraph } from '../.';
+import '../src/index.less';
 
 const App = () => {
   return (
     <div>
-      <Thing />
+      <InbizGraph />
     </div>
   );
 };

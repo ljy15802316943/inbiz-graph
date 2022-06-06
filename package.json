@@ -1,5 +1,5 @@
 {
-  "version": "1.3.0",
+  "version": "1.5.0",
   "name": "test-inbiz-graph",
   "license": "MIT",
   "main": "dist/index.js",
@@ -10,6 +10,11 @@
   ],
   "engines": {
     "node": ">=10"
+  },
+  "homepage": "https://github.com/ljy15802316943/inbiz-graph.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ljy15802316943/inbiz-graph.git"
   },
   "scripts": {
     "start": "tsdx watch",
@@ -34,7 +39,7 @@
     "singleQuote": true,
     "trailingComma": "es5"
   },
-  "author": "cq.liiangyang",
+  "author": "cq.lijiangyang",
   "module": "dist/inbiz-graph.esm.js",
   "size-limit": [
     {
@@ -48,14 +53,26 @@
   ],
   "devDependencies": {
     "@size-limit/preset-small-lib": "^7.0.8",
+    "@storybook/addon-postcss": "^2.0.0",
+    "@types/d3": "^7.4.0",
     "@types/react": "^18.0.12",
     "@types/react-dom": "^18.0.5",
+    "autoprefixer": "^10.4.7",
+    "cssnano": "^5.1.11",
     "husky": "^8.0.1",
-    "react": "^18.1.0",
-    "react-dom": "^18.1.0",
+    "less": "^4.1.2",
+    "postcss": "^8.4.14",
+    "postcss-modules": "^4.3.1",
+    "rollup-plugin-postcss": "^4.0.2",
     "size-limit": "^7.0.8",
     "tsdx": "^0.14.1",
     "tslib": "^2.4.0",
     "typescript": "^4.7.3"
+  },
+  "dependencies": {
+    "d3": "^7.4.4",
+    "react": "^16.14.0",
+    "react-dom": "^17.0.0",
+    "react-router-dom": "^6.3.0"
   }
 }
