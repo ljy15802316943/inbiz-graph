@@ -1,36 +1,61 @@
 import React, { useEffect, useState, useImperativeHandle } from 'react';
 import { Select, Switch, message, InputNumber } from 'antd';
 import * as d3 from 'd3';
-import { objType, getNodes, getLinks,  } from './components/utils';
+import { objType, getNodes, getLinks, sort, getColor } from './components/utils';
+import axios from './components/axios';
+import 'antd/dist/antd.css';
 import './index.less';
 
-export const InbizGraph: React.FC<any> = (props) => {
+interface propsType {
+  graphUrl?: any | '';//图谱请求url。
+  params?: any;//图谱请求参数。
+  totalNum?: number;//图谱命中数量
+
+  showTotal?:any, 
+  Files?:any, 
+  modalData?:any, 
+  setData ?: any,
+};
+
+const Index: React.FC<propsType> = (props) => {
   const {
-    dispatch,
-    parentSelf = {},
-    noData=false, totalNum=0, showTotal=0, Files=[], modalData, setData = {}
+    totalNum=0, showTotal=0, Files=[], modalData, setData = {},
   } = props;
 
-  // 默认的几个颜色
-  const getColor = (type: string) => {
-    // -more 属于展开节点，统一使用配色
-    const o = self || { colorObj: '' };
-    let tempColor = '#dedede';
-    const themeData: any = {
-      file: o.FileGraphNodeColor || '#deecff',
-      'file-more': o.FileGraphNodeColor || '#deecff',
-      entity: o.EntityGraphNodeColor || '#f27530',
-      'entity-more': o.EntityGraphNodeColor || '#f27530',
-      topic: o.TopicGraphNodeColor || '#3d8c40',
-      'topic-more': o.TopicGraphNodeColor || '#3d8c40',
-      anchor: o.HitGraphNodeColor || '#f2ba3d',
-      link: '#cccccc',
-      more: '#5aa9f8',
-      'more-more': '#5aa9f8',
-    };
-    return themeData[type] || tempColor;
-  };
+  //鼠标移动到节点获取节点对象
+  const [tooltipData, setTooltipData] = useState<any>({});
+  //保存固定参数
+  const [fixedData, setFixedData] = useState<any>({});
+  //线的距离
+  const [lineDistance, setLineDistance] = useState<number>(2);
+  // 请求返回的图谱数据对象
+  const [GraphData, setGraphData] = useState<any>({
+    noce: true, //第一次加载页面不执行。
+    forceData: {}, // 更新前重新设置节点线的距离，和节点排斥力。
+    nodes: [], //圆的数据
+    edges: [], //线的数据
+  });
+  //边属性
+  const [checked, setChecked] = useState<boolean>(false);
+  //元素平移放大时保留的对象
+  const [transform, setTransform] = useState<any>(null);
+  // 右下角显示隐藏操作
+  const [showNodes, setShowNodes] = useState<any>([
+    { name: '文档', type: 'file', color: '#deecff' },
+    { name: '主题', type: 'topic', color: '#3d8c40' },
+    { name: '实体', type: 'entity', color: '#f27530' },
+  ]);
+  //保存层级
+  const [hierarchyValue, setHierarchyValue] = useState<number>(2);
+  // 获取所有的主题色
+  const [themeColor, setThemeColor] = useState<any>({});
+  // 无数据
+  const [noData, setNoData] = useState<boolean>(false);
 
+  //d3力对象
+  let forceSimulation: any = null;
+  // 请求参数对象
+  let tempData: any = {};
   const params: any = {
     file: 'file',
     width: 1200, // SVG组件宽高
@@ -50,7 +75,6 @@ export const InbizGraph: React.FC<any> = (props) => {
     onSearch: () => {}, //点击节点弹窗内的搜索按钮
     ...(props.params || {}),
   };
-
   const self: any = {
     dragStatus: false,
     tooltipData: {}, //鼠标移动到节点获取节点对象
@@ -86,1138 +110,247 @@ export const InbizGraph: React.FC<any> = (props) => {
     svgWidth: params.width,
     svgHeight: params.height,
   };
-
-  //鼠标移动到节点获取节点对象
-  const [tooltipData, setTooltipData] = useState<any>({});
-  //保存固定参数
-  const [fixedData, setFixedData] = useState<any>({});
-  //线的距离
-  const [lineDistance, setLineDistance] = useState<number>(2);
-
-  // 请求参数对象
-  let tempData: any = {};
-  // 请求返回的图谱数据对象
-  const [GraphData, setGraphData] = useState<any>({
-    noce: true, //第一次加载页面不执行。
-    forceData: {}, // 更新前重新设置节点线的距离，和节点排斥力。
-    nodes: [], //圆的数据
-    edges: [], //线的数据
-  });
-  //边属性
-  const [checked, setChecked] = useState<boolean>(false);
-  //元素平移放大时保留的对象
-  const [transform, setTransform] = useState<any>(null);
-  //d3力对象
-  let forceSimulation: any = null;
-
-  // 右下角显示隐藏操作
-  const [showNodes, setShowNodes] = useState<any>([
-    { name: '文档', type: 'file', color: '#eeeeee' },
-    { name: '主题', type: 'topic', color: '#eeeeee' },
-    { name: '实体', type: 'entity', color: '#eeeeee' },
-  ]);
-  //保存层级
-  const [hierarchyValue, setHierarchyValue] = useState<number>(2);
-  // 获取所有的主题色
-  const [themeColor, setThemeColor] = useState<any>({});
-
-  useEffect(() => {
-    // getGlobalConfig();
-    // //进入页面默认隐藏图谱
-    // dispatch({ type: 'atlas/updateState', payload: { noData: true } });
-    // if (params.form === 'atlas-search') {
-    //   const o = {
-    //     anchor: params.anchor,
-    //     level: self.level,
-    //     fileid: params.fileid,
-    //     topic: params.topic,
-    //     type: params.type,
-    //   };
-    //   getGraph(o);
-    // }
-    // return () => setModel({ totalNum: 0 });
-  }, []);
-
-  useEffect(() => {
-    let data = {
-      "nodes": [
-          {
-              "key": "8049519777272743522",
-              "name": "image_2353.txt",
-              "type": "file",
-              "id": 3143036,
-              "show": true,
-              "node": {
-                  "modifyUser": "杨晨思宇",
-                  "modifyTime": 1571309380000,
-                  "createTime": 1571309380000,
-                  "conceptId": 3143036,
-                  "attributes": {
-                      "_id": "248830",
-                      "type": "file"
-                  },
-                  "createUser": "杨晨思宇",
-                  "title": "image_2353.txt",
-                  "type": "file"
-              },
-              "index": 0,
-              "x": 36.34982904050367,
-              "y": -61.548756584157324,
-              "vy": -0.002637479275449386,
-              "vx": 0.009222697346297755
-          },
-          {
-              "key": "-4742067637220225354",
-              "name": "TB1L0LUfffM8KJjSZPfXXbklXXa_!!0-item_pic.jpg.txt",
-              "type": "file",
-              "id": 3143036,
-              "show": true,
-              "node": {
-                  "modifyUser": "杨晨思宇",
-                  "modifyTime": 1571137812000,
-                  "createTime": 1571137812000,
-                  "conceptId": 3143036,
-                  "attributes": {
-                      "_id": "234947",
-                      "type": "file"
-                  },
-                  "createUser": "杨晨思宇",
-                  "title": "TB1L0LUfffM8KJjSZPfXXbklXXa_!!0-item_pic.jpg.txt",
-                  "type": "file"
-              },
-              "index": 1,
-              "x": -280.8654018867335,
-              "y": 18.16241167332692,
-              "vy": 0.0016033090682573416,
-              "vx": -0.008860559852326975
-          },
-          {
-              "key": "-1425370703521136678",
-              "name": "电话",
-              "type": "entity",
-              "id": -1298275357,
-              "show": true,
-              "node": {
-                  "conceptId": -1298275357,
-                  "attributes": {
-                      "_id": "电话",
-                      "type": "baidu",
-                      "ref_count": 78
-                  },
-                  "title": "电话",
-                  "type": "entity"
-              },
-              "index": 2,
-              "x": -163.09413798274375,
-              "y": -175.84442349425916,
-              "vy": -0.009260202295949734,
-              "vx": -0.0025644469230691014
-          },
-          {
-              "key": "-2011989851756750862",
-              "name": "image_2115.txt",
-              "type": "file",
-              "id": 3143036,
-              "show": true,
-              "node": {
-                  "modifyUser": "杨晨思宇",
-                  "modifyTime": 1571309021000,
-                  "createTime": 1571309021000,
-                  "conceptId": 3143036,
-                  "attributes": {
-                      "_id": "248308",
-                      "type": "file"
-                  },
-                  "createUser": "杨晨思宇",
-                  "title": "image_2115.txt",
-                  "type": "file"
-              },
-              "index": 3,
-              "x": -79.9117143848118,
-              "y": 140.56870530997756,
-              "vy": 0.009051249439454005,
-              "vx": 0.0022645292243083873
-          },
-          {
-              "key": "-6872468314014959261",
-              "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-              "type": "topic",
-              "id": 110546223,
-              "show": true,
-              "node": {
-                  "anchor": true,
-                  "conceptId": 110546223,
-                  "attributes": {
-                      "_id": "2",
-                      "type": "topic"
-                  },
-                  "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic"
-              },
-              "index": 4,
-              "x": -121.24389808923902,
-              "y": -17.712627587221583,
-              "vy": 0,
-              "vx": 0,
-              "fx": -121.24389808923902,
-              "fy": -17.712627587221583
-          },
-          {
-              "key": "2717573536710809041",
-              "name": "甲醛",
-              "type": "entity",
-              "id": -1298275357,
-              "show": true,
-              "node": {
-                  "conceptId": -1298275357,
-                  "attributes": {
-                      "_id": "甲醛",
-                      "type": "baidu",
-                      "ref_count": 18
-                  },
-                  "title": "甲醛",
-                  "type": "entity"
-              },
-              "index": 5,
-              "x": -42.90819512616714,
-              "y": -161.32646914971852,
-              "vy": -0.008405268625725014,
-              "vx": 0.004023242105677968
-          },
-          {
-              "key": "1877854401409295840",
-              "name": "烟酒",
-              "type": "entity",
-              "id": -1298275357,
-              "show": true,
-              "node": {
-                  "conceptId": -1298275357,
-                  "attributes": {
-                      "_id": "烟酒",
-                      "type": "baidu",
-                      "ref_count": 8
-                  },
-                  "title": "烟酒",
-                  "type": "entity"
-              },
-              "index": 6,
-              "x": -205.66872276612048,
-              "y": 122.39440366963959,
-              "vy": 0.008145000809280392,
-              "vx": -0.005052934688190082
-          },
-          {
-              "key": "-5545975769303879633",
-              "name": "钢化玻璃",
-              "type": "entity",
-              "id": -1298275357,
-              "show": true,
-              "node": {
-                  "conceptId": -1298275357,
-                  "attributes": {
-                      "_id": "钢化玻璃",
-                      "type": "baidu",
-                      "ref_count": 272
-                  },
-                  "title": "钢化玻璃",
-                  "type": "entity"
-              },
-              "index": 7,
-              "x": -261.551665595442,
-              "y": -101.80126896894542,
-              "vy": -0.004909509223974601,
-              "vx": -0.008255863222290893
-          },
-          {
-              "key": "9092767590509197594",
-              "name": "image_2134.txt",
-              "type": "file",
-              "id": 3143036,
-              "show": true,
-              "node": {
-                  "modifyUser": "杨晨思宇",
-                  "modifyTime": 1571309055000,
-                  "createTime": 1571309055000,
-                  "conceptId": 3143036,
-                  "attributes": {
-                      "_id": "248350",
-                      "type": "file"
-                  },
-                  "createUser": "杨晨思宇",
-                  "title": "image_2134.txt",
-                  "type": "file"
-              },
-              "index": 8,
-              "x": 20.64864751639271,
-              "y": 63.6706196641703,
-              "vy": 0.004874259970729104,
-              "vx": 0.008314773651963888
-          }
-      ],
-      "edges": [
-          {
-              "key": "3417203439458526200",
-              "source": {
-                  "key": "-4742067637220225354",
-                  "name": "TB1L0LUfffM8KJjSZPfXXbklXXa_!!0-item_pic.jpg.txt",
-                  "type": "file",
-                  "id": 3143036,
-                  "show": true,
-                  "node": {
-                      "modifyUser": "杨晨思宇",
-                      "modifyTime": 1571137812000,
-                      "createTime": 1571137812000,
-                      "conceptId": 3143036,
-                      "attributes": {
-                          "_id": "234947",
-                          "type": "file"
-                      },
-                      "createUser": "杨晨思宇",
-                      "title": "TB1L0LUfffM8KJjSZPfXXbklXXa_!!0-item_pic.jpg.txt",
-                      "type": "file"
-                  },
-                  "index": 1,
-                  "x": -280.8654018867335,
-                  "y": 18.16241167332692,
-                  "vy": 0.0016033090682573416,
-                  "vx": -0.008860559852326975
-              },
-              "target": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "relation": "主题",
-              "show": true,
-              "link": {
-                  "from": "-4742067637220225354",
-                  "attributes": {
-                      "weight": 0.30061864852905273
-                  },
-                  "to": "-6872468314014959261",
-                  "type": "主题"
-              },
-              "type": "topic",
-              "index": 0
-          },
-          {
-              "key": "-6724181021398611333",
-              "source": {
-                  "key": "8049519777272743522",
-                  "name": "image_2353.txt",
-                  "type": "file",
-                  "id": 3143036,
-                  "show": true,
-                  "node": {
-                      "modifyUser": "杨晨思宇",
-                      "modifyTime": 1571309380000,
-                      "createTime": 1571309380000,
-                      "conceptId": 3143036,
-                      "attributes": {
-                          "_id": "248830",
-                          "type": "file"
-                      },
-                      "createUser": "杨晨思宇",
-                      "title": "image_2353.txt",
-                      "type": "file"
-                  },
-                  "index": 0,
-                  "x": 36.34982904050367,
-                  "y": -61.548756584157324,
-                  "vy": -0.002637479275449386,
-                  "vx": 0.009222697346297755
-              },
-              "target": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "relation": "主题",
-              "show": true,
-              "link": {
-                  "from": "8049519777272743522",
-                  "attributes": {
-                      "weight": 0.010000898502767086
-                  },
-                  "to": "-6872468314014959261",
-                  "type": "主题"
-              },
-              "type": "topic",
-              "index": 1
-          },
-          {
-              "key": "7136395476594440666",
-              "source": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "target": {
-                  "key": "-1425370703521136678",
-                  "name": "电话",
-                  "type": "entity",
-                  "id": -1298275357,
-                  "show": true,
-                  "node": {
-                      "conceptId": -1298275357,
-                      "attributes": {
-                          "_id": "电话",
-                          "type": "baidu",
-                          "ref_count": 78
-                      },
-                      "title": "电话",
-                      "type": "entity"
-                  },
-                  "index": 2,
-                  "x": -163.09413798274375,
-                  "y": -175.84442349425916,
-                  "vy": -0.009260202295949734,
-                  "vx": -0.0025644469230691014
-              },
-              "relation": "包含",
-              "show": true,
-              "link": {
-                  "from": "-6872468314014959261",
-                  "attributes": {
-                      "weight": 0.006
-                  },
-                  "to": "-1425370703521136678",
-                  "type": "包含"
-              },
-              "type": "entity",
-              "index": 2
-          },
-          {
-              "key": "4256970445699164177",
-              "source": {
-                  "key": "9092767590509197594",
-                  "name": "image_2134.txt",
-                  "type": "file",
-                  "id": 3143036,
-                  "show": true,
-                  "node": {
-                      "modifyUser": "杨晨思宇",
-                      "modifyTime": 1571309055000,
-                      "createTime": 1571309055000,
-                      "conceptId": 3143036,
-                      "attributes": {
-                          "_id": "248350",
-                          "type": "file"
-                      },
-                      "createUser": "杨晨思宇",
-                      "title": "image_2134.txt",
-                      "type": "file"
-                  },
-                  "index": 8,
-                  "x": 20.64864751639271,
-                  "y": 63.6706196641703,
-                  "vy": 0.004874259970729104,
-                  "vx": 0.008314773651963888
-              },
-              "target": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "relation": "主题",
-              "show": true,
-              "link": {
-                  "from": "9092767590509197594",
-                  "attributes": {
-                      "weight": 0.019999999552965164
-                  },
-                  "to": "-6872468314014959261",
-                  "type": "主题"
-              },
-              "type": "topic",
-              "index": 3
-          },
-          {
-              "key": "-12796323558787680",
-              "source": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "target": {
-                  "key": "-5545975769303879633",
-                  "name": "钢化玻璃",
-                  "type": "entity",
-                  "id": -1298275357,
-                  "show": true,
-                  "node": {
-                      "conceptId": -1298275357,
-                      "attributes": {
-                          "_id": "钢化玻璃",
-                          "type": "baidu",
-                          "ref_count": 272
-                      },
-                      "title": "钢化玻璃",
-                      "type": "entity"
-                  },
-                  "index": 7,
-                  "x": -261.551665595442,
-                  "y": -101.80126896894542,
-                  "vy": -0.004909509223974601,
-                  "vx": -0.008255863222290893
-              },
-              "relation": "包含",
-              "show": true,
-              "link": {
-                  "from": "-6872468314014959261",
-                  "attributes": {
-                      "weight": 0.005
-                  },
-                  "to": "-5545975769303879633",
-                  "type": "包含"
-              },
-              "type": "entity",
-              "index": 4
-          },
-          {
-              "key": "-3069090125513376238",
-              "source": {
-                  "key": "-2011989851756750862",
-                  "name": "image_2115.txt",
-                  "type": "file",
-                  "id": 3143036,
-                  "show": true,
-                  "node": {
-                      "modifyUser": "杨晨思宇",
-                      "modifyTime": 1571309021000,
-                      "createTime": 1571309021000,
-                      "conceptId": 3143036,
-                      "attributes": {
-                          "_id": "248308",
-                          "type": "file"
-                      },
-                      "createUser": "杨晨思宇",
-                      "title": "image_2115.txt",
-                      "type": "file"
-                  },
-                  "index": 3,
-                  "x": -79.9117143848118,
-                  "y": 140.56870530997756,
-                  "vy": 0.009051249439454005,
-                  "vx": 0.0022645292243083873
-              },
-              "target": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "relation": "主题",
-              "show": true,
-              "link": {
-                  "from": "-2011989851756750862",
-                  "attributes": {
-                      "weight": 0.019999999552965164
-                  },
-                  "to": "-6872468314014959261",
-                  "type": "主题"
-              },
-              "type": "topic",
-              "index": 5
-          },
-          {
-              "key": "4600308662537869021",
-              "source": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "target": {
-                  "key": "2717573536710809041",
-                  "name": "甲醛",
-                  "type": "entity",
-                  "id": -1298275357,
-                  "show": true,
-                  "node": {
-                      "conceptId": -1298275357,
-                      "attributes": {
-                          "_id": "甲醛",
-                          "type": "baidu",
-                          "ref_count": 18
-                      },
-                      "title": "甲醛",
-                      "type": "entity"
-                  },
-                  "index": 5,
-                  "x": -42.90819512616714,
-                  "y": -161.32646914971852,
-                  "vy": -0.008405268625725014,
-                  "vx": 0.004023242105677968
-              },
-              "relation": "包含",
-              "show": true,
-              "link": {
-                  "from": "-6872468314014959261",
-                  "attributes": {
-                      "weight": 0.003
-                  },
-                  "to": "2717573536710809041",
-                  "type": "包含"
-              },
-              "type": "entity",
-              "index": 6
-          },
-          {
-              "key": "-8518184433619124119",
-              "source": {
-                  "key": "-6872468314014959261",
-                  "name": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                  "type": "topic",
-                  "id": 110546223,
-                  "show": true,
-                  "node": {
-                      "anchor": true,
-                      "conceptId": 110546223,
-                      "attributes": {
-                          "_id": "2",
-                          "type": "topic"
-                      },
-                      "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-                      "type": "topic"
-                  },
-                  "index": 4,
-                  "x": -121.24389808923902,
-                  "y": -17.712627587221583,
-                  "vy": 0,
-                  "vx": 0,
-                  "fx": -121.24389808923902,
-                  "fy": -17.712627587221583
-              },
-              "target": {
-                  "key": "1877854401409295840",
-                  "name": "烟酒",
-                  "type": "entity",
-                  "id": -1298275357,
-                  "show": true,
-                  "node": {
-                      "conceptId": -1298275357,
-                      "attributes": {
-                          "_id": "烟酒",
-                          "type": "baidu",
-                          "ref_count": 8
-                      },
-                      "title": "烟酒",
-                      "type": "entity"
-                  },
-                  "index": 6,
-                  "x": -205.66872276612048,
-                  "y": 122.39440366963959,
-                  "vy": 0.008145000809280392,
-                  "vx": -0.005052934688190082
-              },
-              "relation": "包含",
-              "show": true,
-              "link": {
-                  "from": "-6872468314014959261",
-                  "attributes": {
-                      "weight": 0.011
-                  },
-                  "to": "1877854401409295840",
-                  "type": "包含"
-              },
-              "type": "entity",
-              "index": 7
-          }
-      ],
-      "forceData": {}
-    };
-    let o = {
-      "nodes": {
-          "8049519777272743522": {
-              "modifyUser": "杨晨思宇",
-              "modifyTime": 1571309380000,
-              "createTime": 1571309380000,
-              "conceptId": 3143036,
-              "attributes": {
-                  "_id": "248830",
-                  "type": "file"
-              },
-              "createUser": "杨晨思宇",
-              "title": "image_2353.txt",
-              "type": "file"
-          },
-          "-4742067637220225354": {
-              "modifyUser": "杨晨思宇",
-              "modifyTime": 1571137812000,
-              "createTime": 1571137812000,
-              "conceptId": 3143036,
-              "attributes": {
-                  "_id": "234947",
-                  "type": "file"
-              },
-              "createUser": "杨晨思宇",
-              "title": "TB1L0LUfffM8KJjSZPfXXbklXXa_!!0-item_pic.jpg.txt",
-              "type": "file"
-          },
-          "-1425370703521136678": {
-              "conceptId": -1298275357,
-              "attributes": {
-                  "_id": "电话",
-                  "type": "baidu",
-                  "ref_count": 78
-              },
-              "title": "电话",
-              "type": "entity"
-          },
-          "-2011989851756750862": {
-              "modifyUser": "杨晨思宇",
-              "modifyTime": 1571309021000,
-              "createTime": 1571309021000,
-              "conceptId": 3143036,
-              "attributes": {
-                  "_id": "248308",
-                  "type": "file"
-              },
-              "createUser": "杨晨思宇",
-              "title": "image_2115.txt",
-              "type": "file"
-          },
-          "-6872468314014959261": {
-              "anchor": true,
-              "conceptId": 110546223,
-              "attributes": {
-                  "_id": "2",
-                  "type": "topic"
-              },
-              "title": "汽车 精选 免费 完美 钢化玻璃 喜欢 银联",
-              "type": "topic"
-          },
-          "2717573536710809041": {
-              "conceptId": -1298275357,
-              "attributes": {
-                  "_id": "甲醛",
-                  "type": "baidu",
-                  "ref_count": 18
-              },
-              "title": "甲醛",
-              "type": "entity"
-          },
-          "1877854401409295840": {
-              "conceptId": -1298275357,
-              "attributes": {
-                  "_id": "烟酒",
-                  "type": "baidu",
-                  "ref_count": 8
-              },
-              "title": "烟酒",
-              "type": "entity"
-          },
-          "-5545975769303879633": {
-              "conceptId": -1298275357,
-              "attributes": {
-                  "_id": "钢化玻璃",
-                  "type": "baidu",
-                  "ref_count": 272
-              },
-              "title": "钢化玻璃",
-              "type": "entity"
-          },
-          "9092767590509197594": {
-              "modifyUser": "杨晨思宇",
-              "modifyTime": 1571309055000,
-              "createTime": 1571309055000,
-              "conceptId": 3143036,
-              "attributes": {
-                  "_id": "248350",
-                  "type": "file"
-              },
-              "createUser": "杨晨思宇",
-              "title": "image_2134.txt",
-              "type": "file"
-          }
-      },
-      "edges": {
-          "3417203439458526200": {
-              "from": "-4742067637220225354",
-              "attributes": {
-                  "weight": 0.30061864852905273
-              },
-              "to": "-6872468314014959261",
-              "type": "主题"
-          },
-          "-6724181021398611333": {
-              "from": "8049519777272743522",
-              "attributes": {
-                  "weight": 0.010000898502767086
-              },
-              "to": "-6872468314014959261",
-              "type": "主题"
-          },
-          "7136395476594440666": {
-              "from": "-6872468314014959261",
-              "attributes": {
-                  "weight": 0.006
-              },
-              "to": "-1425370703521136678",
-              "type": "包含"
-          },
-          "4256970445699164177": {
-              "from": "9092767590509197594",
-              "attributes": {
-                  "weight": 0.019999999552965164
-              },
-              "to": "-6872468314014959261",
-              "type": "主题"
-          },
-          "-12796323558787680": {
-              "from": "-6872468314014959261",
-              "attributes": {
-                  "weight": 0.005
-              },
-              "to": "-5545975769303879633",
-              "type": "包含"
-          },
-          "-3069090125513376238": {
-              "from": "-2011989851756750862",
-              "attributes": {
-                  "weight": 0.019999999552965164
-              },
-              "to": "-6872468314014959261",
-              "type": "主题"
-          },
-          "4600308662537869021": {
-              "from": "-6872468314014959261",
-              "attributes": {
-                  "weight": 0.003
-              },
-              "to": "2717573536710809041",
-              "type": "包含"
-          },
-          "-8518184433619124119": {
-              "from": "-6872468314014959261",
-              "attributes": {
-                  "weight": 0.011
-              },
-              "to": "1877854401409295840",
-              "type": "包含"
-          }
-      },
-      "anchors": 1
-    };
-    let ns: any = getNodes(o.nodes);
-    let es: any = getLinks(ns, o.edges);
-    setGraphData({noce: false, nodes: ns, edges: es});
-  }, []);
-
-  useEffect(() => {
-    if (!GraphData.noce) {
-      console.log(GraphData, 'GraphData');
-      const { nodes, edges, forceData } = GraphData;
-      // 渲染svg
-      renderD3(nodes, edges, forceData);
-    }
-  }, [GraphData]);
-
-  // //窗口变化时重新渲染
-  // useEffect(() => {
-  //   if (!GraphData.noce && GraphData.nodes.length) {
-  //     const { nodes, edges, forceData } = GraphData;
-  //     // 渲染svg
-  //     renderD3(nodes, edges, forceData);
-  //   }
-  // }, [params.width]);
-
-  // //主题色变化时重现渲染
-  // useEffect(() => {
-  //   if (objType(themeColor) && GraphData.nodes.length) {
-  //     const { nodes, edges, forceData } = GraphData;
-  //     // 渲染svg
-  //     renderD3(nodes, edges, forceData);
-  //   }
-  // }, [themeColor]);
-
-  //更新model数据
-  const setModel = (o = {}) => {
-    dispatch({ type: 'atlas/updateState', payload: { ...o } });
-  };
-
-  // 获取主题色
-  const getGlobalConfig = () => {
-    dispatch({ type: 'atlas/getGlobalConfig' }).then((res: any) => {
-      if (res.code == '0') {
-        let list = res.data || [];
-        let data: any = {
-          // 保存翻页状态
-          FileGraphCenterNode: '',
-          TopicGraphCenterNode: '',
-          EntityGraphCenterNode: '',
-          // 保存颜色值
-          FileGraphNodeColor: '',
-          EntityGraphNodeColor: '',
-          TopicGraphNodeColor: '',
-          HitGraphNodeColor: '',
-          Steps2FanSize: '',
-        };
-        list.forEach((v: any) => {
-          data[v.name] = v.value || '';
-        });
-        const fileO: any = {
-          file: data.FileGraphCenterNode,
-          topic: data.TopicGraphCenterNode,
-          entity: data.EntityGraphCenterNode,
-        };
-        self.pageSize = fileO[params.file || 'file'];
-        self.colorObj = {
-          FileGraphNodeColor: data.FileGraphNodeColor, //文档节点颜色
-          EntityGraphNodeColor: data.EntityGraphNodeColor, //实体节点颜色
-          TopicGraphNodeColor: data.TopicGraphNodeColor, //主题节点颜色
-          HitGraphNodeColor: data.HitGraphNodeColor, //命中节点颜色
-        };
-        showNodes.forEach((v: any) => (v.color = getColor(v.type)));
-        setShowNodes(showNodes);
-        self.nextSize = data.Steps2FanSize;
-
-        try {
-          // 获取全部主题色
-          const co = list.find((v: { name: string }) => v.name === 'GRAPH_NODE_TYPE_STYLES') || {};
-          console.log(JSON.parse(co.value || '{}'), `JSON.parse(co.value || '')`);
-          setThemeColor(JSON.parse(co.value || '{}'));
-        } catch (error) {}
-      } else {
-        message.error(res.msg || '接口异常');
-      }
-    });
-  };
-
-  // 获取图谱
-  const getGraph = (o: any = {}) => {
-    const data = {
-      anchor: 2,
-      step: 2,
-      type: 'entity',
-      offset: 0,
-      ...o,
-    };
-    dispatch({ type: 'atlas/getGraph', payload: data }).then(
-      (res: { isSuccess: boolean; context: string; data: any }) => {
-        if (res.isSuccess) {
-          let { nodes, edges } = res.data || {};
-          if (!objType(nodes)) {
-            setModel({ noData: true });
-            return;
-          }
-          setModel({ noData: false });
-          let ns: any = getNodes(nodes);
-          let es: any = getLinks(ns, edges);
-          // 保存返回的数据，以后更新svg就是操作数据。
-          setGraphData({
-            nodes: ns,
-            edges: es,
-            forceData: o.forceData ? {} : GraphData.forceData,
-          });
-          return;
-        }
-        message.error(res.context || '接口异常');
-      },
-    );
-  };
-
-  // 获取列表
-  const filesSearch = (o: any = {}) => {
-    const data = {
-      pageIndex: self.pageNumber,
-      pageSize: self.pageSize,
-      location: 'enterprise',
-      pattern: 'fuzzy',
-      searchVal: params.anchor || 2,
-      folderId: 1,
-      type: 0,
-      lang: 'zh-cn',
-      ...o,
-    };
-    dispatch({ type: 'atlas/filesSearch', payload: data }).then((res: any) => {
-      if (res.result == '0') {
-        const { Total = 0, Files = [] } = res.data;
-        setModel({ totalNum: Total, Files });
-        if (Total) {
-          const fileIds = Files.map((v: { id: number }) => v.id);
-          tempData.anchor = `'${fileIds.join("','")}'`;
-          dispatch({
-            type: 'atlas/getGraph',
-            payload: {
-              anchor: `'${fileIds.join("','")}'`,
-              step: 2,
-              type: 'file',
-            },
-          }).then((data: any) => {
-            if (data.isSuccess) {
-              let { nodes, edges } = data.data || {};
-              if (!objType(nodes) || !objType(edges)) {
-                setModel({ noData: true });
-                return;
-              }
-              setModel({ noData: false });
-              let ns: any = getNodes(nodes);
-              let es: any = getLinks(ns, edges);
-              // 需要保存返回的数据，以后更新svg就是操作数据。
-              setGraphData({ nodes: ns, edges: es });
-            } else {
-              message.error(data.context || '接口异常');
-            }
-          });
-        }
-      } else {
-        message.error('接口异常');
-      }
-    });
-  };
-
-  //设置线的粗细
-  const sort = (num: number) => {
-    let list = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
-    for (let i = 0; i < list.length; i++) {
-      if (num <= list[i]) {
-        num = list[i];
-        break;
-      }
-    }
-    if (num >= 1) num = 1;
-    return num * 10;
-  };
-
   //svg节点对象
   const svgObj: any = {
     svg: null,
     svgBox: null,
     gs: null,
     gLines: null,
+  };
+
+  useEffect(() => {
+    if (!GraphData.noce) {
+      const { nodes, edges, forceData } = GraphData;
+      // 渲染svg
+      renderD3(nodes, edges, forceData);
+    }
+  }, [GraphData]);
+
+  //窗口变化时重新渲染
+  useEffect(() => {
+    if (!GraphData.noce && GraphData.nodes.length) {
+      const { nodes, edges, forceData } = GraphData;
+      // 渲染svg
+      renderD3(nodes, edges, forceData);
+    }
+  }, [params.width]);
+
+  // 事件列表
+  const eventOpt = {
+    // 点击维度
+    dimension: (o: { hide: boolean; type: string }) => {
+      o.hide = !o.hide;
+      setShowNodes([...showNodes]);
+      const { nodes = [], edges = [] } = GraphData;
+      //隐藏节点
+      nodes.forEach((v: any) => {
+        if (v.type === o.type && !v.node.anchor) {
+          v.show = !o.hide;
+          let classr = v.node.attributes.class;
+          if (v.type === 'entity' && classr) {
+            if (themeColor[classr].checked) {
+              v.show = false;
+            }
+          }
+          // 隐藏线
+          edges.forEach(function (k: any) {
+            k.show = !k.target.show || !k.source.show ? false : true;
+          });
+        }
+      });
+      setGraphData({ ...GraphData, nodes, edges });
+    },
+    // 点击层级
+    hierarchyClick: (step: number) => {
+      setHierarchyValue(step);
+      const fileIds = Files.map((v: { id: number }) => v.id);
+      let data: any = { step };
+      if (objType(modalData)) {
+        data = { ...modalData, step };
+      }
+      if (objType(fixedData)) {
+        data = { ...data, ...eventOpt.setData(fixedData) };
+      }
+    },
+    // 点击边属性
+    checkedClick: (e: boolean) => {
+      setChecked(e);
+      setGraphData({ ...GraphData });
+    },
+    // 点击加载更多
+    loadMore: (d: any) => {
+      const o = GraphData.nodes.find((v: any) => v.key === d.key);
+      //连续点击增加条数
+      if (d.node.anchor || d.node.anchorMore) {
+        // 节点为主体，第二次请求条数为10。
+        o.next = !o.next ? 10 : (o.next += 10);
+      } else {
+        o.next = !o.next && o.next !== 0 ? 0 : (o.next += 10);
+      }
+      tempData = {
+        ...tempData,
+        step: 2,
+        anchor: o.name,
+        type: o.type,
+        next: o.next,
+      };
+      // 这个方法判定了不同的文件类型type传anchor值
+      if (d.type === 'topic') {
+        tempData.topic = d.node.attributes['_id'];
+        tempData.anchor = tempData.topic;
+        tempData.type = 'topic_id';
+      } else if (d.type === 'file') {
+        tempData.fileid = d.node.attributes['_id'];
+        tempData.anchor = d.node.attributes['_id'];
+      };
+      getGraph2(tempData, o);
+    },
+    open: (value: number) => {
+      const nodeTooltips = () => d3.select('#node-tooltips').style('display', 'none');
+      switch (value) {
+        case 1: //打开文件
+          // TODO 添加文档链接
+          window.open(
+            // location.origin +
+            setData.EDOC2_URL + 'preview.html?fileid=' + tooltipData.node.attributes['_id'],
+          );
+          break;
+        case 2: //搜索文档
+          nodeTooltips();
+          const { node } = tooltipData;
+          let data = {
+            searchVal: node.type === 'topic' ? node.attributes._id : node.title,
+            searchType: node.type,
+          };
+          break;
+        case 3: //设为中心
+          nodeTooltips();
+          setFixedData({ ...tooltipData });
+          let data1: any = {
+            anchor: `'${tooltipData.name}'`,
+            step: 2,
+            type: tooltipData.type,
+          };
+          data1 = Object.assign(data1, eventOpt.setData(tooltipData));
+          getGraph2(data1);
+          break;
+        case 4: //展开更多节点
+          nodeTooltips();
+          const { nodes } = GraphData;
+          let o = nodes.find((item: any) => item.key === tooltipData.key);
+          //连续点击增加条数
+          if (o.node.anchor || o.node.anchorMore) {
+            // 节点为主体，第二次请求条数为10。
+            o.next = !o.next ? 10 : (o.next += 10);
+          } else {
+            o.next = !o.next && o.next !== 0 ? 0 : (o.next += 10);
+          }
+          nodes.map(function (item: any, index: number) {
+            if (item.key === tooltipData.key) {
+              // 更多节点写入偏移量
+              nodes[index].node.offset =
+                item.node.offset !== undefined
+                  ? item.node.offset + self.nextSize
+                  : item.node.anchor
+                  ? self.nextSize
+                  : 0;
+            }
+          });
+          let data2: any = {
+            anchor: tooltipData.name,
+            level: params.level || 2,
+            next: o.next,
+          };
+          data2 = Object.assign(data2, eventOpt.setData(tooltipData));
+          getGraph2(data2, tooltipData);
+          break;
+        default:
+          break;
+      }
+    },
+    setData: (o: any = {}) => {
+      let data: any = {
+        type: o.type,
+        anchor: o.name,
+      };
+      let _id = o.node.attributes['_id'];
+      if (data.type === 'topic') data.topic = _id;
+      if (data.type === 'file') data.fileid = _id;
+      // 此为单独文件图谱
+      if (data.fileid || data.fileid === 0) data.anchor = data.fileid;
+      // 文件下的主题图谱，传topic，更改类型topic_id，anchor改为topic;
+      if (data.topic) {
+        data.anchor = data.topic;
+        data.type = 'topic_id';
+      }
+      return data;
+    },
+  };
+
+  useEffect(() => {
+    getGraph2(props.params);
+  }, []);
+
+  //获取图谱数据
+  const getGraph2 = (
+    o?:any,//请求参数
+    more?:any,//多次请求
+    ) => {
+    const params = {
+      anchor: '',
+      step: 2,
+      type: 'entity',
+      offset: 0,
+      ...(o||{}),
+    };
+    axios.get(props.graphUrl, params)
+      .then(function (res: any) {
+        if (res.isSuccess) {
+          let { nodes, edges } = res.data || {};
+          //第一次请求
+          if (!more && !objType(nodes)) {
+            setNoData(true);
+            return;
+          }
+          //多次请求
+          if (more && !objType(nodes) && !(GraphData.nodes || [])) {
+            setNoData(true);
+            return;
+          };
+          setNoData(false);
+          let ns: any = getNodes(nodes);
+          let es: any = getLinks(ns, edges);
+          if (more) {
+            GraphData.nodes.map((v: { key: string; node: any }) => nodes[v.key] && delete nodes[v.key]);
+            GraphData.edges.map((v: { key: string }) => edges[v.key] && delete edges[v.key]);
+            if (getNodes(nodes) && (getNodes(nodes) || []).length) {
+              ns = GraphData.nodes.concat(getNodes(nodes));
+              es = GraphData.edges.concat(getLinks(ns, edges));
+              // 将anchor节点固定
+              const item = ns.find((v: any) => v.key === more.key);
+              item.node.anchorMore = 'true';
+              //保存返回的数据，以后更新svg就是操作数据。
+              setGraphData({
+                nodes: ns,
+                edges: es,
+                forceData: { ...GraphData.forceData, strength: -400, alpha: 1 },
+              });
+            } else {
+              // 元素被删除完了，说明没有子节点了。
+              message.success('已加载全部子节点');
+            }
+          } else {
+            //保存返回的数据，以后更新svg就是操作数据。
+            setGraphData({
+              nodes: ns,
+              edges: es || [],
+              forceData: o.forceData ? {} : GraphData.forceData,
+            });
+          }
+          return;
+        }
+        message.error(res.context || '接口异常');
+      })
   };
 
   // SECTION 画图
@@ -1477,7 +610,7 @@ export const InbizGraph: React.FC<any> = (props) => {
         return '';
       });
 
-    // 点击加载更多
+    //点击加载更多
     svgObj.gs.on('dblclick', eventOpt.loadMore);
 
     // 设置元素可缩放和平移
@@ -1717,7 +850,6 @@ export const InbizGraph: React.FC<any> = (props) => {
       // 开始运行，数据更新后，ticked会把数据和图形绑定在力的上面
       // 力函数创建好后，会自动把nodes和edges数据改变，并加上关联关系，然后更新视图。
       if (edges && edges.length) {
-        console.log(111);
         // 设置线的位置
         svgO.gLines
           .attr('x1', (d: any) => d.source.x)
@@ -1769,248 +901,7 @@ export const InbizGraph: React.FC<any> = (props) => {
         }),
     );
   };
-
-  // 事件列表
-  const eventOpt = {
-    // 点击维度
-    dimension: (o: { hide: boolean; type: string }) => {
-      o.hide = !o.hide;
-      setShowNodes([...showNodes]);
-      const { nodes = [], edges = [] } = GraphData;
-      //隐藏节点
-      nodes.forEach((v: any) => {
-        if (v.type === o.type && !v.node.anchor) {
-          v.show = !o.hide;
-          let classr = v.node.attributes.class;
-          if (v.type === 'entity' && classr) {
-            if (themeColor[classr].checked) {
-              v.show = false;
-            }
-          }
-          // 隐藏线
-          edges.forEach(function (k: any) {
-            k.show = !k.target.show || !k.source.show ? false : true;
-          });
-        }
-      });
-      setGraphData({ ...GraphData, nodes, edges });
-    },
-    // 点击层级
-    hierarchyClick: (step: number) => {
-      setHierarchyValue(step);
-      const { menuValue } = parentSelf;
-      const fileIds = Files.map((v: { id: number }) => v.id);
-      let data: any = { step };
-
-      if (menuValue) {
-        data.type = menuValue.id;
-        data.anchor = parentSelf.inputValue;
-        if (menuValue.id === 'file') {
-          data.anchor = `'${fileIds.join("','")}'`;
-        }
-      }
-      if (objType(modalData)) {
-        data = { ...modalData, step };
-      }
-      if (objType(fixedData)) {
-        data = { ...data, ...eventOpt.setData(fixedData) };
-      }
-      getGraph({ ...data, hierarchy: true });
-    },
-    // 点击边属性
-    checkedClick: (e: boolean) => {
-      setChecked(e);
-      setGraphData({ ...GraphData });
-    },
-    // 点击加载更多
-    loadMore: (d: any) => {
-      const o = GraphData.nodes.find((v: any) => v.key === d.key);
-      //连续点击增加条数
-      if (d.node.anchor || d.node.anchorMore) {
-        // 节点为主体，第二次请求条数为10。
-        o.next = !o.next ? 10 : (o.next += 10);
-      } else {
-        o.next = !o.next && o.next !== 0 ? 0 : (o.next += 10);
-      }
-      tempData = {
-        ...tempData,
-        step: 2,
-        anchor: o.name,
-        type: o.type,
-        next: o.next,
-      };
-      // 这个方法判定了不同的文件类型type传anchor值
-      if (d.type === 'topic') {
-        tempData.topic = d.node.attributes['_id'];
-        tempData.anchor = tempData.topic;
-        tempData.type = 'topic_id';
-      } else if (d.type === 'file') {
-        tempData.fileid = d.node.attributes['_id'];
-        tempData.anchor = d.node.attributes['_id'];
-      }
-      dispatch({ type: 'atlas/getGraph', payload: tempData }).then((res: any) => {
-        if (res.isSuccess) {
-          let { nodes, edges } = res.data || {};
-          if (!objType(nodes) && !(GraphData.nodes || [])) {
-            setModel({ noData: true });
-            return;
-          }
-          setModel({ noData: false });
-          GraphData.nodes.map(
-            (v: { key: string; node: any }) => nodes[v.key] && delete nodes[v.key],
-          );
-          GraphData.edges.map((v: { key: string }) => edges[v.key] && delete edges[v.key]);
-
-          if (getNodes(nodes) && (getNodes(nodes) || []).length) {
-            let ns: any = GraphData.nodes.concat(getNodes(nodes));
-            let es: any = GraphData.edges.concat(getLinks(ns, edges));
-
-            // 将anchor节点固定
-            o.node.anchorMore = 'true';
-            // 需要保存请求返回的数据，以后更新svg就是操作数据。
-            setGraphData({
-              nodes: ns,
-              edges: es,
-              forceData: { ...GraphData.forceData, strength: -400, alpha: 1 },
-            });
-          } else {
-            // 元素被删除完了，说明没有子节点了。
-            message.success('已加载全部子节点');
-          }
-        } else {
-          message.error(res.context || '接口异常');
-        }
-      });
-    },
-    open: (value: number) => {
-      const nodeTooltips = () => d3.select('#node-tooltips').style('display', 'none');
-      switch (value) {
-        case 1: //打开文件
-          // TODO 添加文档链接
-          window.open(
-            // location.origin +
-            setData.EDOC2_URL + 'preview.html?fileid=' + tooltipData.node.attributes['_id'],
-          );
-          break;
-        case 2: //搜索文档
-          nodeTooltips();
-          const { node } = tooltipData;
-          let data = {
-            searchVal: node.type === 'topic' ? node.attributes._id : node.title,
-            searchType: node.type,
-          };
-          // 第三方过来隐藏菜单
-          let hisdata: any = {
-            pathname: '/atlas/intelligence-search',
-            query: {
-              searchVal: data.searchVal,
-              searchType: data.searchType,
-            },
-          };
-          window.location.href.includes('atlasHide=true') && (hisdata.query.atlasHide = 'true');
-          // history.push(hisdata);
-          // window.open(
-          //   history.createHref({
-          //     pathname: '/atlas/intelligence-search',
-          //     search:
-          //       `?searchVal=${data.searchVal}&searchType=${data.searchType}` +
-          //       `${window.location.href.includes('atlasHide=true') ? '&atlasHide=true' : ''}`,
-          //   }),
-          // );
-          break;
-        case 3: //设为中心
-          nodeTooltips();
-          setFixedData({ ...tooltipData });
-          let data1: any = {
-            anchor: `'${tooltipData.name}'`,
-            step: 2,
-            type: tooltipData.type,
-          };
-          data1 = Object.assign(data1, eventOpt.setData(tooltipData));
-          getGraph(data1);
-          break;
-        case 4: //展开更多节点
-          nodeTooltips();
-          let nextOffset = self.nextSize;
-          const { nodes } = GraphData;
-          nodes.map(function (item: any, index: number) {
-            if (item.key === tooltipData.key) {
-              // 更多节点写入偏移量
-              nodes[index].node.offset =
-                item.node.offset !== undefined
-                  ? item.node.offset + self.nextSize
-                  : item.node.anchor
-                  ? self.nextSize
-                  : 0;
-              // 如果0则可能初次展开到已展开的节点，提示已展开全部，如果带第一次展开，则可能没返回值
-              nextOffset = nodes[index].node.offset;
-            }
-          });
-          let data2: any = {
-            anchor: tooltipData.name,
-            level: params.level || 2,
-            next: nextOffset,
-          };
-          data2 = Object.assign(data2, eventOpt.setData(tooltipData));
-          dispatch({ type: 'atlas/getGraph', payload: data2 }).then((res: any) => {
-            if (res.isSuccess) {
-              let { nodes, edges } = res.data || {};
-              if (!objType(nodes) && !(GraphData.nodes || [])) {
-                setModel({ noData: true });
-                return;
-              }
-              setModel({ noData: false });
-              GraphData.nodes.map(
-                (v: { key: string; node: any }) => nodes[v.key] && delete nodes[v.key],
-              );
-              GraphData.edges.map((v: { key: string }) => edges[v.key] && delete edges[v.key]);
-              if (getNodes(nodes) && (getNodes(nodes) || []).length) {
-                let ns: any = GraphData.nodes.concat(getNodes(nodes));
-                let es: any = GraphData.edges.concat(getLinks(ns, edges));
-
-                // 将anchor节点固定
-                const o = ns.find((n: any) => n.key === tooltipData.key);
-                o.node.anchorMore = 'true';
-
-                // 需要保存请求返回的数据，以后更新svg就是操作数据。
-                setGraphData({
-                  nodes: ns,
-                  edges: es,
-                  forceData: { ...GraphData.forceData, strength: -400, alpha: 1 },
-                });
-              } else {
-                // 元素被删除完了，说明没有子节点了。
-                message.success('已加载全部子节点');
-              }
-            } else {
-              message.error(res.context || '接口异常');
-            }
-          });
-          break;
-
-        default:
-          break;
-      }
-    },
-    setData: (o: any = {}) => {
-      let data: any = {
-        type: o.type,
-        anchor: o.name,
-      };
-      let _id = o.node.attributes['_id'];
-      if (data.type === 'topic') data.topic = _id;
-      if (data.type === 'file') data.fileid = _id;
-      // 此为单独文件图谱
-      if (data.fileid || data.fileid === 0) data.anchor = data.fileid;
-      // 文件下的主题图谱，传topic，更改类型topic_id，anchor改为topic;
-      if (data.topic) {
-        data.anchor = data.topic;
-        data.type = 'topic_id';
-      }
-      return data;
-    },
-  };
-
+  
   const renderSvg = () => (
     <>
       <svg
@@ -2207,4 +1098,18 @@ export const InbizGraph: React.FC<any> = (props) => {
       {noData ? noDataRender() : renderSvg()}
     </div>
   );
+};
+
+export const InbizGraph: React.FC<any> = (props) => {
+  return (
+    <Index 
+      graphUrl="http://172.16.2.113:1530/inwise/graph2.jsp"
+      params={{
+        anchor: '主题',
+        step: 2,
+        type: 'entity',
+        offset: 0,
+      }}
+    />
+  )
 };
