@@ -10,18 +10,7 @@ interface propsType {
   width:number;//图谱宽度
   height:number;//图谱高度
   graphUrl?: string;//图谱请求url。
-  params?: {//图谱接口请求参数。
-    step:number;//层级
-    offset:number,//默认传0
-    anchor: string | number;//关键字 | 文件id。
-    type: string,//查询类型
-    /**
-     * type不同，anchor传值也不同。
-     * type: 'file',//查询文档，anchor=文件id。
-     * type: 'topic',//查询主题，anchor=节点名字
-     * type: 'entity',//实体 anchor=节点名字
-    */
-  };
+  params?: any;//图谱接口请求参数。
   showRightMenu?:boolean;//显示右侧菜单
   EDOC2_URL?:string;//跳转ecm预览文件地址。
 
@@ -42,7 +31,7 @@ interface propsType {
   }
 };
 
-export const InbizGraph: React.FC<propsType> = (props) => {
+const Index: React.FC<propsType> = (props) => {
   const {
     EDOC2_URL='https://v5.edoc2.com/preview.html?fileid=',
     optEvent={},
@@ -75,7 +64,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   // 获取所有的主题色
   const [themeColor, setThemeColor] = useState<any>({});
   // 无数据
-  const [noData, setNoData] = useState<boolean>(true);
+  const [noData, setNoData] = useState<boolean>(false);
 
   //d3力对象
   let forceSimulation: any = null;
@@ -261,10 +250,15 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     //搜索文档
     searchDoc: () => {
       eventOpt.nodeTooltips();
+      const { node } = tooltipData;
       if (optEvent.searchDoc) {
         optEvent.searchDoc(tooltipData);
         return;
-      }
+      };
+      let data = {
+        searchVal: node.type === 'topic' ? node.attributes._id : node.title,
+        searchType: node.type,
+      };
     },
     //设为中心
     setCore: () => {
@@ -1090,4 +1084,36 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       {props.children ? props.children : null}
     </div>
   );
+};
+
+export const InbizGraph: React.FC<any> = (props) => {
+  return (
+    <InbizGraph 
+      width={1200}
+      height={600}
+      graphUrl="http://172.16.2.113:1530/inwise/graph2.jsp"
+      // params={{
+      //   anchor: '主题',
+      //   step: 2,
+      //   type: 'entity',
+      //   offset: 0,
+      // }}
+      params={
+        {"anchor":"38","step":2,"type":"topic_id","offset":0}
+      }
+      optEvent={{
+        // loadMore?:Function;//双击元素加载更多
+        // dimension?:Function;//菜单点击维度
+        // hierarchyClick?:Function;//菜单点击层级
+        // checkedClick?:any;//菜单点击边属性
+        // openFile?: Function;//弹窗打开文件
+        // searchDoc?: Function;//弹窗搜索文档
+        // setCore?: Function;//弹窗设为中心
+        // openMoreNode?: Function;//弹窗展开更多节点
+        // searchDoc: (data:any) => {
+        //   console.log(data, 'data');
+        // }
+      }}
+    />
+  )
 };

@@ -1,5 +1,10 @@
 // 判断对象是否为空
-export const objType = (o:object) => o.constructor===Object?JSON.stringify(o)!=='{}':false;
+export const objType = (o:object) => typeOf(o) ==='object'?JSON.stringify(o)!=='{}':false;
+function typeOf(obj:any) {
+  let res = Object.prototype.toString.call(obj).split(' ')[1];
+  res = res.substring(0, res.length - 1).toLowerCase();
+  return res;
+};
 
 const getKey = (nodes: any, num: number) => {
   var keyNum = null;
