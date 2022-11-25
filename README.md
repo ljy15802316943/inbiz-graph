@@ -7,7 +7,9 @@ npm install inbiz-graph --save
 ```
 
 ## 页面引入
+```bash
 import { InbizGraph } from 'inbiz-graph';
+```
 
 ## 参数描述
 
@@ -70,3 +72,4 @@ interface propsType {
   }}
 />
 ```
+![image](https://github.com/ljy15802316943/inbiz-graph/blob/main/src/img/icons/excel.png)
