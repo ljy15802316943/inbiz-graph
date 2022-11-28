@@ -9,6 +9,11 @@ import './index.less';
 interface propsType {
   width:number;//图谱宽度
   height:number;//图谱高度
+  //自定义数据。如果传入自定是数据则无需传入inwise接口和请求参数，下面有使用示例。
+  GraphData?: {
+    nodes: any; //圆的数据
+    edges: any; //线的数据
+  },
   graphUrl?: string;//图谱请求url。
   params?: {//图谱接口请求参数。
     step:number;//层级
@@ -140,10 +145,24 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   };
 
   useEffect(() => {
-    if (props.params) {
+    if (!props.GraphData && props.params) {
       getGraph2(props.params);
     };
   }, []);
+
+  useEffect(() => {
+    if ((props.GraphData||{}).nodes) {
+      let GraphData:any = {...props.GraphData};
+      try {
+        let ns: any = getNodes(GraphData.nodes);
+        let es: any = getLinks(ns, GraphData.edges);
+        setNoData(false);
+        setGraphData({nodes: ns, edges: es});
+      } catch (error) {
+        message.error('传入GraphData数据格式错误');
+      }
+    }
+  }, [props.GraphData])
 
   useEffect(() => {
     if (!GraphData.noce) {
@@ -331,6 +350,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       offset: 0,
       ...(o||{}),
     };
+    if (props.GraphData) return;
     if (!props.graphUrl) {
       message.error('请传入graphUrl图谱接口');
       return;
@@ -1091,3 +1111,4 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     </div>
   );
 };
+

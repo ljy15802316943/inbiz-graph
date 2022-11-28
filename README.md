@@ -1,5 +1,7 @@
 # 组件使用tsdx框架开发的npm包。
 
+![image](https://raw.githubusercontent.com/ljy15802316943/inbiz-graph/main/src/img/r.png)
+
 ## 安装依赖
 
 ```bash
@@ -17,6 +19,11 @@ import { InbizGraph } from 'inbiz-graph';
 interface propsType {
   width:number;//图谱宽度
   height:number;//图谱高度
+  //自定义数据。如果传入自定是数据则无需传入inwise接口和请求参数，下面有使用示例。
+  GraphData?: {
+    nodes: any; //圆的数据
+    edges: any; //线的数据
+  },
   graphUrl?: string;//图谱请求url。
   params?: {//图谱接口请求参数。
     step:number;//层级
@@ -49,9 +56,11 @@ interface propsType {
     openMoreNode?: Function;//弹窗展开更多节点
   }
 };
+
+
 ```
 ```bash
-// 示例
+// 示例1 使用inwise的服务。
 <InbizGraph 
   width={1200}
   height={600}
@@ -62,14 +71,60 @@ interface propsType {
     type: 'entity',
     offset: 0,
   }}
-  params={
-    {"anchor":"38","step":2,"type":"topic_id","offset":0}
-  }
   optEvent={{
-    setCore: (data:any) => {//弹窗设为中心
+    loadMore:(data:any) => {//双击节点回调
       console.log(data, 'data');
     }
   }}
 />
 ```
-![image](https://github.com/ljy15802316943/inbiz-graph/blob/main/src/img/icons/excel.png)
+
+```
+```bash
+// 示例2 使用自定义逻辑。
+<InbizGraph 
+  width={1200}
+  height={600}
+  GraphData={{
+    "nodes": {
+      "7766065713332071222": {
+        "conceptId": -1298275357,
+        "attributes": {
+          "_id": "背景",
+          "type": "baidu",
+          "ref_count": 41
+        },
+        "title": "背景",
+        "type": "entity"
+      },
+      "1328350470430427987": {
+        "anchor": true,
+        "conceptId": -1298275357,
+        "attributes": {
+          "_id": "蓝色背景",
+          "type": "baidu",
+          "ref_count": 4
+        },
+        "title": "蓝色背景",
+        "type": "entity"
+      }
+    },
+    "edges": {
+      "3364276357013955879": {
+        "from": "7766065713332071222",
+        "attributes": {
+          "rank": 6,
+          "weight": 0.609552
+        },
+        "to": "1328350470430427987",
+        "type": "相关"
+      }
+    },
+  }}
+  optEvent={{
+    loadMore:(data:any) => {//双击节点回调
+      console.log(data, 'data');
+    }
+  }}
+/>
+```
