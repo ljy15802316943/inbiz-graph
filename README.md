@@ -19,6 +19,7 @@ import { InbizGraph } from 'inbiz-graph';
 interface propsType {
   width:number;//图谱宽度
   height:number;//图谱高度
+  loading?:boolean;//加载效果
   //自定义数据。如果传入自定是数据则无需传入inwise接口和请求参数，下面有使用示例。
   GraphData?: {
     nodes: any; //圆的数据
