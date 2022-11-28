@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Switch, message, InputNumber } from 'antd';
+import { Switch, message, Spin, InputNumber } from 'antd';
 import * as d3 from 'd3';
 import { objType, getNodes, getLinks, sort, getColor } from './components/utils';
 import axios from './components/axios';
@@ -9,6 +9,7 @@ import './index.less';
 interface propsType {
   width:number;//图谱宽度
   height:number;//图谱高度
+  loading?:boolean;//加载效果
   //自定义数据。如果传入自定是数据则无需传入inwise接口和请求参数，下面有使用示例。
   GraphData?: {
     nodes: any; //圆的数据
@@ -77,10 +78,12 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   ]);
   //保存层级
   const [hierarchyValue, setHierarchyValue] = useState<number>(2);
-  // 获取所有的主题色
+  //获取所有的主题色
   const [themeColor, setThemeColor] = useState<any>({});
-  // 无数据
+  //无数据
   const [noData, setNoData] = useState<boolean>(true);
+  //元素加载
+  const [load, setLoad] = useState<boolean>(false);
 
   //d3力对象
   let forceSimulation: any = null;
@@ -355,8 +358,10 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       message.error('请传入graphUrl图谱接口');
       return;
     };
+    setLoad(true);
     axios.get(props.graphUrl, params)
       .then(function (res: any) {
+        setLoad(false);
         if (res.isSuccess) {
           let { nodes, edges } = res.data || {};
           //第一次请求
@@ -954,8 +959,9 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     );
   };
 
+  let Spins: any = Spin;
   const renderSvg = () => (
-    <>  
+    <Spins spinning={props.loading||load}>
       <svg
         id="mainsvg"
         // width={params.width} height={params.height}
@@ -1094,7 +1100,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
           </div>
         </div>
       ) : null}
-    </>
+    </Spins>
   );
 
   const noDataRender = () => (
@@ -1111,4 +1117,3 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     </div>
   );
 };
-
