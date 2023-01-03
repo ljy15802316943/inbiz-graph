@@ -170,8 +170,11 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   useEffect(() => {
     if (!GraphData.noce) {
       const { nodes, edges, forceData } = GraphData;
-      // 渲染svg
-      renderD3(nodes, edges, forceData);
+      //这里加定时器的原因是如果有弹窗动画svg会先执行后造成样式问题。
+      setTimeout(()=> {
+        // 渲染svg
+        renderD3(nodes, edges, forceData);
+      }, 200);
     }
   }, [GraphData]);
 
