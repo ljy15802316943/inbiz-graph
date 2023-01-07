@@ -964,7 +964,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
 
   let Spins: any = Spin;
   const renderSvg = () => (
-    <Spins spinning={props.loading||load}>
+    <>
       <svg
         id="mainsvg"
         // width={params.width} height={params.height}
@@ -1103,11 +1103,11 @@ export const InbizGraph: React.FC<propsType> = (props) => {
           </div>
         </div>
       ) : null}
-    </Spins>
+    </>
   );
 
   const noDataRender = () => (
-    <div className="noData">
+    <div className="noData" style={{ width: params.width, height: params.height }}>
       <img src={require('../src/img/icons/noData.png')} alt="暂无数据" />
       <p className="noData-text">暂无数据</p>
     </div>
@@ -1115,8 +1115,10 @@ export const InbizGraph: React.FC<propsType> = (props) => {
 
   return (
     <div className={`atlas ${props.className||""}`} style={{ width: params.width, height: params.height }}>
-      {noData ? noDataRender() : renderSvg()}
-      {props.children ? props.children : null}
+      <Spins spinning={props.loading||load}>
+        {noData ? noDataRender() : renderSvg()}
+        {props.children ? props.children : null}
+      </Spins>
     </div>
   );
 };
