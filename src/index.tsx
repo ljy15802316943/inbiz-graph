@@ -3,7 +3,7 @@ import { Switch, message, Spin, InputNumber } from 'antd';
 import * as d3 from 'd3';
 import { objType, getNodes, getLinks, sort, getColor } from './components/utils';
 import axios from './components/axios';
-import 'antd/dist/antd.min.css';
+// import 'antd/dist/antd.min.css';
 import './index.less';
 
 interface propsType {
