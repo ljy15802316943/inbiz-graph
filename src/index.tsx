@@ -48,6 +48,8 @@ interface propsType {
   }
 };
 
+//第一次加载执行
+let onceOpen = false;
 export const InbizGraph: React.FC<propsType> = (props) => {
   const {
     EDOC2_URL='https://v5.edoc2.com/preview.html?fileid=',
@@ -171,11 +173,17 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     if (!GraphData.noce) {
       const { nodes, edges, forceData } = GraphData;
       //这里加定时器的原因是如果有弹窗动画svg会先执行后造成样式问题。
-      setTimeout(()=> {
-        // 渲染svg
+      if (!onceOpen) {
+        onceOpen = true;
+        setTimeout(()=> {
+          //渲染svg
+          renderD3(nodes, edges, forceData);
+        }, 300);
+      } else {
         renderD3(nodes, edges, forceData);
-      }, 200);
-    }
+      }
+    };
+    return () => {onceOpen = false};
   }, [GraphData]);
 
   //窗口变化时重新渲染
