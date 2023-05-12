@@ -10,6 +10,7 @@ interface propsType {
   width:number;//图谱宽度
   height:number;//图谱高度
   loading?:boolean;//加载效果
+  svgBoxId?: string;//自定义svg
   //自定义数据。如果传入自定是数据则无需传入inwise接口和请求参数，下面有使用示例。
   GraphData?: {
     nodes: any; //圆的数据
@@ -170,14 +171,14 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   }, [props.GraphData])
 
   useEffect(() => {
-    if (!GraphData.noce) {
+    if (!GraphData.noce && GraphData.nodes.length) {
       const { nodes, edges, forceData } = GraphData;
       //这里加定时器的原因是如果有弹窗动画svg会先执行后造成样式问题。
       if (!onceOpen) {
         onceOpen = true;
         setTimeout(()=> {
-          //渲染svg
-          renderD3(nodes, edges, forceData);
+          // 渲染svg
+          renderD3([...nodes], [...edges], forceData);
         }, 300);
       } else {
         renderD3(nodes, edges, forceData);
@@ -424,13 +425,12 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   // SECTION 画图
   const initSvg = (nodes: any = [], edges: any = []) => {
     svgObj.svg = d3
-      .select('#mainsvg')
+      .select(`#${props.svgBoxId }` || '#mainsvg')
       .attr('width', params.width)
       .attr('height', params.height)
       .attr('viewBox', [-params.width / 2, -params.height / 2, params.width, params.height]);
-    svgObj.svgBox = d3.select('#svgBox');
+    svgObj.svgBox = d3.select(`#${props.svgBoxId}svgBox`);
     let gsNodes = svgObj.svgBox.select('.gs-nodes');
-
     const hide = (list: any, obj?: any) => {
       try {
         list.forEach((k: string) => {
@@ -455,7 +455,6 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     hide(showNodes);
     //获取数据时，检查主题色是否点击过。
     hide(Object.keys(themeColor), themeColor);
-
     // 更新前停止动画
     forceSimulation && forceSimulation.stop();
     // 更新前删除节点
@@ -974,10 +973,10 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const renderSvg = () => (
     <>
       <svg
-        id="mainsvg"
+        id={props.svgBoxId || "mainsvg"}
         // width={params.width} height={params.height}
       >
-        <g id="svgBox">
+        <g id={`${props.svgBoxId}svgBox`}>
           <g className="g-line" />
           <g className="g-text" />
           <g className="gs-nodes" />
