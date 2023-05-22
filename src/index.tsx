@@ -87,6 +87,8 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [noData, setNoData] = useState<boolean>(true);
   //元素加载
   const [load, setLoad] = useState<boolean>(false);
+  //控制暂无数据显示
+  const [visible, $visible] = useState<boolean>(false);
 
   //d3力对象
   let forceSimulation: any = null;
@@ -163,6 +165,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
         let ns: any = getNodes(GraphData.nodes);
         let es: any = getLinks(ns, GraphData.edges);
         setNoData(false);
+        $visible(true);
         setGraphData({nodes: ns, edges: es});
       } catch (error) {
         message.error('传入GraphData数据格式错误');
@@ -371,9 +374,11 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       return;
     };
     setLoad(true);
+    $visible(false);
     axios.get(props.graphUrl, params)
       .then(function (res: any) {
         setLoad(false);
+        $visible(true);
         if (res.isSuccess) {
           let { nodes, edges } = res.data || {};
           //第一次请求
@@ -1115,8 +1120,10 @@ export const InbizGraph: React.FC<propsType> = (props) => {
 
   const noDataRender = () => (
     <div className="noData" style={{ width: params.width, height: params.height }}>
-      <img src={require('../src/img/icons/noData.png')} alt="暂无数据" />
-      <p className="noData-text">暂无数据</p>
+      {visible ? (<>
+        <img src={require('../src/img/icons/noData.png')} alt="暂无数据" />
+        <p className="noData-text">暂无数据</p>
+      </>):null}
     </div>
   );
 
