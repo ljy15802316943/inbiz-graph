@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Switch, message, Spin, InputNumber } from 'antd';
 import * as d3 from 'd3';
+import { locales } from './locales'
 import { objType, getNodes, getLinks, sort, getColor } from './components/utils';
 import axios from './components/axios';
 // import 'antd/dist/antd.min.css';
 import './index.less';
 
 interface propsType {
-  width:number;//图谱宽度
-  height:number;//图谱高度
-  loading?:boolean;//加载效果
+  width: number;//图谱宽度
+  height: number;//图谱高度
+  loading?: boolean;//加载效果
   svgBoxId?: string;//自定义svg
   //自定义数据。如果传入自定是数据则无需传入inwise接口和请求参数，下面有使用示例。
   GraphData?: {
@@ -18,8 +19,8 @@ interface propsType {
   },
   graphUrl?: string;//图谱请求url。
   params?: {//图谱接口请求参数。
-    step:number;//层级
-    offset:number,//默认传0
+    step: number;//层级
+    offset: number,//默认传0
     anchor: string | number;//关键字 | 文件id。
     type: string,//查询类型
     /**
@@ -29,19 +30,20 @@ interface propsType {
      * type: 'entity',//实体 anchor=节点名字
     */
   };
-  showRightMenu?:boolean;//显示右侧菜单
-  EDOC2_URL?:string;//跳转ecm预览文件地址。
-
-  className?:string;//控制图谱样式
-  children?:any;//传入自定义元素。
+  showRightMenu?: boolean;//显示右侧菜单
+  EDOC2_URL?: string;//跳转ecm预览文件地址。
+  locales?: object;//传入的语言。
+  lang?: string;//传入的语种。
+  className?: string;//控制图谱样式
+  children?: any;//传入自定义元素。
   //事件回调函数, 以前的函数将被替换，会执行新传入的函数逻辑, 并返回元素对象。
   optEvent?: {
-    loadMore?:Function;//双击元素加载更多
+    loadMore?: Function;//双击元素加载更多
 
-    dimension?:Function;//菜单点击维度
-    hierarchyClick?:Function;//菜单点击层级
-    checkedClick?:any;//菜单点击边属性
-    
+    dimension?: Function;//菜单点击维度
+    hierarchyClick?: Function;//菜单点击层级
+    checkedClick?: any;//菜单点击边属性
+
     openFile?: Function;//弹窗打开文件
     searchDoc?: Function;//弹窗搜索文档
     setCore?: Function;//弹窗设为中心
@@ -53,8 +55,8 @@ interface propsType {
 let onceOpen = false;
 export const InbizGraph: React.FC<propsType> = (props) => {
   const {
-    EDOC2_URL='https://v5.edoc2.com/preview.html?fileid=',
-    optEvent={},
+    EDOC2_URL = 'https://v5.edoc2.com/preview.html?fileid=',
+    optEvent = {},
   } = props;
   //鼠标移动到节点获取节点对象
   const [tooltipData, setTooltipData] = useState<any>({});
@@ -73,11 +75,20 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [checked, setChecked] = useState<boolean>(false);
   //元素平移放大时保留的对象
   const [transform, setTransform] = useState<any>(null);
+   // 查找对应的文本信息
+   const getMessage = (str: string) => {
+    let key = params.lang
+    if(params.lang == 'cn') key = 'zh-CN'
+    const langObj = themelocales[key]
+    if (langObj && langObj[str]) {
+      return langObj[str];
+    }
+  }
   // 右下角显示隐藏操作
   const [showNodes, setShowNodes] = useState<any>([
-    { name: '文档', type: 'file', color: '#deecff' },
-    { name: '主题', type: 'topic', color: '#3d8c40' },
-    { name: '实体', type: 'entity', color: '#f27530' },
+    { name: getMessage('document'), type: 'file', color: '#deecff' },
+    { name: getMessage('theme'), type: 'topic', color: '#3d8c40' },
+    { name: getMessage('entity'), type: 'entity', color: '#f27530' },
   ]);
   //保存层级
   const [hierarchyValue, setHierarchyValue] = useState<number>(2);
@@ -89,12 +100,15 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [load, setLoad] = useState<boolean>(false);
   //控制暂无数据显示
   const [visible, $visible] = useState<boolean>(false);
-
+  // 用来存储语言
+  const [themelocales, setThemelocales] = useState<any>({ ...locales });
+  
   //d3力对象
   let forceSimulation: any = null;
   // 请求参数对象
   let tempData: any = {};
   const params: any = {
+    lang: props?.lang ||'zh-CN' || 'cn',// 8
     file: 'file',
     width: props.width || 1200, // SVG组件宽高
     height: props.height || 600,
@@ -107,8 +121,8 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     fontSize: 14, // 节点字体大小
     nodeSize: 28, // 节点半径
     nodeSizeTopic: 54, //主题圆半径
-    searchNode: () => {}, //点击节点弹窗内的搜索按钮
-    onSearch: () => {}, //点击节点弹窗内的搜索按钮
+    searchNode: () => { }, //点击节点弹窗内的搜索按钮
+    onSearch: () => { }, //点击节点弹窗内的搜索按钮
     ...(props.params || {}),
   };
   const self: any = {
@@ -130,15 +144,15 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     },
     // 右下角显示隐藏操作
     showNodes: [
-      { name: '文档', type: 'file', color: getColor('file') },
-      { name: '主题', type: 'topic', color: getColor('topic') },
-      { name: '实体', type: 'entity', color: getColor('entity') },
+      { name: getMessage('document'), type: 'file', color: getColor('file') },
+      { name: getMessage('theme'), type: 'topic', color: getColor('topic') },
+      { name: getMessage('entity'), type: 'entity', color: getColor('entity') },
     ],
     // 图谱显示层级
     hierarchy: [
-      { name: '一级', id: 1 },
-      { name: '二级', id: 2 },
-      { name: '三级', id: 3 },
+      { name: getMessage('LevelOne'), id: 1 },
+      { name: getMessage('LevelTwo'), id: 2 },
+      { name: getMessage('LevelThree'), id: 3 },
     ],
     nextSize: 0,
     svgWidth: params.width,
@@ -159,19 +173,20 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   }, []);
 
   useEffect(() => {
-    if ((props.GraphData||{}).nodes) {
-      let GraphData:any = {...props.GraphData};
+    if ((props.GraphData || {}).nodes) {
+      let GraphData: any = { ...props.GraphData };
       try {
         let ns: any = getNodes(GraphData.nodes);
         let es: any = getLinks(ns, GraphData.edges);
         setNoData(false);
         $visible(true);
-        setGraphData({nodes: ns, edges: es});
+        setGraphData({ nodes: ns, edges: es });
       } catch (error) {
-        message.error('传入GraphData数据格式错误');
+        message.error(getMessage('noDataError'));
       }
     }
   }, [props.GraphData])
+
 
   useEffect(() => {
     if (!GraphData.noce && GraphData.nodes.length) {
@@ -179,7 +194,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       //这里加定时器的原因是如果有弹窗动画svg会先执行后造成样式问题。
       if (!onceOpen) {
         onceOpen = true;
-        setTimeout(()=> {
+        setTimeout(() => {
           // 渲染svg
           renderD3([...nodes], [...edges], forceData);
         }, 300);
@@ -187,7 +202,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
         renderD3(nodes, edges, forceData);
       }
     };
-    return () => {onceOpen = false};
+    return () => { onceOpen = false };
   }, [GraphData]);
 
   //窗口变化时重新渲染
@@ -198,6 +213,40 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       renderD3(nodes, edges, forceData);
     }
   }, [params.width]);
+
+  useEffect(() => {
+    if(typeof props?.lang == 'undefined' && typeof props?.locales == 'undefined') return
+    if (props?.lang && !isEmptyObject(props?.locales)) {
+      updateLanguage(props.lang, props?.locales)
+    } else if (!props?.lang && !isEmptyObject(props?.locales)) {
+      updateLanguage('zh-CN', props?.locales)
+    } 
+  }, [props?.locales, props?.lang])
+
+  // 判断是否是null对象
+  const isEmptyObject = (obj: any) => {
+    return Object.keys(obj).length === 0;
+  }
+  // 更新数据
+  const updateLanguage = (lang: string, locales: any) => {
+    if (lang == 'cn') lang = 'zh-CN';
+    setThemelocales((prevLanguage: any) => {
+      if (prevLanguage[lang]) {
+        return {
+          ...prevLanguage,
+          [lang]: {
+            ...prevLanguage[lang],
+            ...locales,
+          },
+        };
+      } else {
+        return {
+          ...prevLanguage,
+          [lang]: locales,
+        };
+      }
+    });
+  }
 
   // 事件列表
   const eventOpt = {
@@ -227,7 +276,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     //点击层级
     hierarchyClick: (step: number) => {
       setHierarchyValue(step);
-      let data: any = { step, type: params.type, anchor: params.anchor};
+      let data: any = { step, type: params.type, anchor: params.anchor };
       if (objType(fixedData)) {
         data = { ...data, ...eventOpt.setData(fixedData) };
       }
@@ -283,7 +332,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       }
       return data;
     },
-    ...(props.optEvent||{}),
+    ...(props.optEvent || {}),
     //关闭弹窗
     nodeTooltips: () => d3.select('#node-tooltips').style('display', 'none'),
     //打开文件
@@ -342,8 +391,8 @@ export const InbizGraph: React.FC<propsType> = (props) => {
             item.node.offset !== undefined
               ? item.node.offset + self.nextSize
               : item.node.anchor
-              ? self.nextSize
-              : 0;
+                ? self.nextSize
+                : 0;
         }
       });
       let data2: any = {
@@ -358,19 +407,19 @@ export const InbizGraph: React.FC<propsType> = (props) => {
 
   //获取图谱数据
   const getGraph2 = (
-    o?:any,//请求参数
-    more?:any,//多次请求
-    ) => {
+    o?: any,//请求参数
+    more?: any,//多次请求
+  ) => {
     const params = {
       anchor: '',
       step: 2,
       type: 'entity',
       offset: 0,
-      ...(o||{}),
+      ...(o || {}),
     };
     if (props.GraphData) return;
     if (!props.graphUrl) {
-      message.error('请传入graphUrl图谱接口');
+      message.error(getMessage('noUrlError'));
       return;
     };
     setLoad(true);
@@ -430,7 +479,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   // SECTION 画图
   const initSvg = (nodes: any = [], edges: any = []) => {
     svgObj.svg = d3
-      .select(`#${props.svgBoxId }` || '#mainsvg')
+      .select(`#${props.svgBoxId}` || '#mainsvg')
       .attr('width', params.width)
       .attr('height', params.height)
       .attr('viewBox', [-params.width / 2, -params.height / 2, params.width, params.height]);
@@ -453,7 +502,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
           }
         });
       } catch (error) {
-        message.error('图谱传入数据错误!');
+        message.error(getMessage('dataError'));
       }
     };
     //获取数据时，检查图谱显示维度是否点击过。
@@ -489,7 +538,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
           let color = '#cccccc';
           if (d.relation === '相似') {
             let rank = d.link.attributes.rank || 1;
-            let colorData:any = {
+            let colorData: any = {
               1: '#000000',
               2: '#383838',
               3: '#666666',
@@ -567,7 +616,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       .append('text')
       .attr('text-anchor', 'middle')
       .attr('fill', (d: any) => (d.type !== 'file' ? '#ffffff' : '#333333'))
-      .attr('tspan', function (this: any, d: any)  {
+      .attr('tspan', function (this: any, d: any) {
         // 文字显示切分，主题分词
         if (d.type === 'topic') {
           let copyName: any = d.name || '';
@@ -706,7 +755,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     let nodeActive: any = null;
     let hideTooltips: any = null;
     svgObj.gs
-      .on('click', function (this:any, d: any) {
+      .on('click', function (this: any, d: any) {
         forceSimulation.stop();
         const circleBox = d3.select(this);
         if (circleBox.attr('class') === 'circleBox') {
@@ -735,7 +784,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
           d3.selectAll('.active-node').attr('class', 'circleBox');
         }
       })
-      .on('mouseover', function (this:any, d: any) {
+      .on('mouseover', function (this: any, d: any) {
         clearTimeout(nodeOutActive);
         if (self.dragStatus) return;
         // 如果已经选中节点 固定弹窗显示
@@ -979,7 +1028,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     <>
       <svg
         id={props.svgBoxId || "mainsvg"}
-        // width={params.width} height={params.height}
+      // width={params.width} height={params.height}
       >
         <g id={`${props.svgBoxId}svgBox`}>
           <g className="g-line" />
@@ -990,37 +1039,37 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       <div className="node-tooltips" id="node-tooltips">
         <div className="tips-op-container">
           {tooltipData.type === 'file' ? (
-            <div className="tips-op-item" title="打开文件" onClick={() => eventOpt.openFile()}>
+            <div className="tips-op-item" title={getMessage('openFile')} onClick={() => eventOpt.openFile()}>
               <img
                 src={require('../src/img/icons/openFile.png')}
-                alt="打开文件"
-                title="打开文件"
+                alt={getMessage('openFile')}
+                title={getMessage('openFile')}
                 className="openFile-icon"
               />
             </div>
           ) : (
-            <div className="tips-op-item" title="搜索文档" onClick={() => eventOpt.searchDoc()}>
+            <div className="tips-op-item" title={getMessage('searchFile')} onClick={() => eventOpt.searchDoc()}>
               <img
                 src={require('../src/img/icons/search.png')}
-                alt="搜索"
-                title="搜索文档"
+                alt={getMessage('search')}
+                title={getMessage('searchFile')}
                 className="search-icon"
               />
             </div>
           )}
-          <div className="tips-op-item" title="设为中心" onClick={() => eventOpt.setCore()}>
+          <div className="tips-op-item" title={getMessage('positionCenter')} onClick={() => eventOpt.setCore()}>
             <img
               src={require('../src/img/icons/position.png')}
-              alt="定位"
-              title="设为中心"
+              alt={getMessage('position')}
+              title={getMessage('positionCenter')}
               className="position-icon"
             />
           </div>
-          <div className="tips-op-item" title="展开更多节点" onClick={() => eventOpt.openMoreNode()}>
+          <div className="tips-op-item" title={getMessage('extendIcon')} onClick={() => eventOpt.openMoreNode()}>
             <img
               src={require('../src/img/icons/extend.png')}
-              alt="更多"
-              title="展开更多节点"
+              alt={getMessage('extend')}
+              title={getMessage('extendIcon')}
               className="extend-icon"
             />
           </div>
@@ -1036,7 +1085,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
           </div>
         ) : (
           <div className="file-info">
-            <span className="info-title">文件名：</span>
+            <span className="info-title">{getMessage('fileName')}</span>
             <p className="info-text" data-bind="text:fileName">
               {tooltipData.fileName}
             </p>
@@ -1046,7 +1095,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
       {props.showRightMenu ? (
         <div className="rightMenu">
           <div className="displayDimension">
-            <p>图谱显示维度：</p>
+            <p>{getMessage('displayDimension')}</p>
             <ul>
               {showNodes.map((v: any, i: number) => (
                 <li
@@ -1061,8 +1110,8 @@ export const InbizGraph: React.FC<propsType> = (props) => {
             </ul>
           </div>
           <div className="displayHierarchy">
-            <p>图谱显示层级：</p>
-            <select value={hierarchyValue} style={{ width: 100 }} onChange={(e:any)=>{
+            <p>{getMessage('displayHierarchy')}</p>
+            <select value={hierarchyValue} style={{ width: 100 }} onChange={(e: any) => {
               eventOpt.hierarchyClick(e.target.value);
             }}>
               {self.hierarchy.map((v: { name: string; id: number }) => (
@@ -1073,7 +1122,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
             </select>
           </div>
           <div className="nodeDistance">
-            <p>节点排斥距离：</p>
+            <p>{getMessage('nodeDistance')}</p>
             <div className="nodeCircle">
               <ul>
                 {[1, 2, 3, 4, 5].map((v) => (
@@ -1110,7 +1159,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
             </div>
           </div>
           <div className="displayEdge">
-            <p>边属性显示：</p>
+            <p>{getMessage('displayEdge')}</p>
             <Switch onChange={eventOpt.checkedClick} checked={checked} />
           </div>
         </div>
@@ -1121,15 +1170,15 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const noDataRender = () => (
     <div className="noData" style={{ width: params.width, height: params.height }}>
       {visible ? (<>
-        <img src={require('../src/img/icons/noData.png')} alt="暂无数据" />
-        <p className="noData-text">暂无数据</p>
-      </>):null}
+        <img src={require('../src/img/icons/noData.png')} alt={getMessage('noDataInfo')} />
+        <p className="noData-text">{getMessage('noDataInfo')}</p>
+      </>) : null}
     </div>
   );
 
   return (
-    <div className={`atlas ${props.className||""}`} style={{ width: params.width, height: params.height }}>
-      <Spins spinning={props.loading||load}>
+    <div className={`atlas ${props.className || ""}`} style={{ width: params.width, height: params.height }}>
+      <Spins spinning={props.loading || load}>
         {noData ? noDataRender() : renderSvg()}
         {props.children ? props.children : null}
       </Spins>
