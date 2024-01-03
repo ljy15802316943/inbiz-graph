@@ -1,4 +1,4 @@
-# 组件使用tsdx框架开发的npm包。
+# 组件使用 tsdx 框架开发的 npm 包。
 
 ![image](https://raw.githubusercontent.com/ljy15802316943/inbiz-graph/main/src/img/r.png)
 
@@ -9,17 +9,18 @@ npm install inbiz-graph --save
 ```
 
 ## 页面引入
+
 ```bash
 import { InbizGraph } from 'inbiz-graph';
 ```
 
 ```bash
 // 示例1 使用inwise的服务。
-<InbizGraph 
+<InbizGraph
   width={1200}
   height={600}
   graphUrl="http://xxx/xxx/graph2.jsp"
- 
+
   params={{
     anchor: '主题',
     step: 2,
@@ -34,10 +35,10 @@ import { InbizGraph } from 'inbiz-graph';
 />
 ```
 
-```
+````
 ```bash
 // 示例2 使用自定义逻辑。
-<InbizGraph 
+<InbizGraph
   width={1200}
   height={600}
    lang="zh-CN"
@@ -88,7 +89,7 @@ import { InbizGraph } from 'inbiz-graph';
     }
   }}
 />
-```
+````
 
 ## 参数描述
 
@@ -130,12 +131,39 @@ interface propsType {
     dimension?:Function;//菜单点击维度
     hierarchyClick?:Function;//菜单点击层级
     checkedClick?:any;//菜单点击边属性
-    
+
     openFile?: Function;//弹窗打开文件
     searchDoc?: Function;//弹窗搜索文档
     setCore?: Function;//弹窗设为中心
     openMoreNode?: Function;//弹窗展开更多节点
   }
 };
-
+//多语言相关参数
+//如新增语种请补充完整，不完整将默认中文
+       {
+        'noDataInfo': '暂无数据',
+        'interfaceException': '接口异常',
+        'allChildnodesLoaded': '已加载全部子节点',
+        'nodeDistance': '节点排斥距离：',
+        'displayHierarchy': '图谱显示层级：',
+        'displayDimension': '图谱显示维度：',
+        'extend': '更多',
+        'noDataError': '传入GraphData数据格式错误',
+        'dataError': '图谱传入数据错误',
+        'noUrlError': '请传入graphUrl图谱接口',
+        'fileName': '文件名：',
+        'searchFile': '搜索文档',
+        'search': '搜索',
+        'extendIcon': '展开更多节点',
+        'displayEdge': '边属性显示：',
+        'position': '定位',
+        'positionCenter': '设为中心',
+        'openFile': '打开文件',
+        'LevelOne': '一级',
+        'LevelTwo': '二级',
+        'LevelThree': '三级',
+        'document': '文档',
+        'theme': '主题',
+        'entity': '实体',
+        }
 ```

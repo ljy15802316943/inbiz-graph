@@ -77,11 +77,13 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [transform, setTransform] = useState<any>(null);
    // 查找对应的文本信息
    const getMessage = (str: string) => {
-    let key = params.lang
-    if(params.lang == 'cn') key = 'zh-CN'
+    let key = lang
+    if(lang == 'cn') key = 'zh-CN'
     const langObj = themelocales[key]
     if (langObj && langObj[str]) {
       return langObj[str];
+    } else {
+      return  themelocales['zh-CN'][str]
     }
   }
   // 右下角显示隐藏操作
@@ -102,13 +104,14 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [visible, $visible] = useState<boolean>(false);
   // 用来存储语言
   const [themelocales, setThemelocales] = useState<any>({ ...locales });
+  // 语音文件类别 
+  const [lang, setLang] = useState<string>('zh-CN');
   
   //d3力对象
   let forceSimulation: any = null;
   // 请求参数对象
   let tempData: any = {};
   const params: any = {
-    lang: props?.lang ||'zh-CN' || 'cn',// 8
     file: 'file',
     width: props.width || 1200, // SVG组件宽高
     height: props.height || 600,
@@ -228,21 +231,22 @@ export const InbizGraph: React.FC<propsType> = (props) => {
     return Object.keys(obj).length === 0;
   }
   // 更新数据
-  const updateLanguage = (lang: string, locales: any) => {
-    if (lang == 'cn') lang = 'zh-CN';
+  const updateLanguage = (targetlang: string, locales: any) => {
+    if (targetlang == 'cn') targetlang = 'zh-CN';
+    setLang(targetlang)
     setThemelocales((prevLanguage: any) => {
-      if (prevLanguage[lang]) {
+      if (prevLanguage[targetlang]) {
         return {
           ...prevLanguage,
-          [lang]: {
-            ...prevLanguage[lang],
+          [targetlang]: {
+            ...prevLanguage[targetlang],
             ...locales,
           },
         };
       } else {
         return {
           ...prevLanguage,
-          [lang]: locales,
+          [targetlang]: locales,
         };
       }
     });
