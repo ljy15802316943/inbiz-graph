@@ -19,6 +19,7 @@ import { InbizGraph } from 'inbiz-graph';
   width={1200}
   height={600}
   graphUrl="http://xxx/xxx/graph2.jsp"
+ 
   params={{
     anchor: '主题',
     step: 2,
@@ -39,6 +40,12 @@ import { InbizGraph } from 'inbiz-graph';
 <InbizGraph 
   width={1200}
   height={600}
+   lang="zh-CN"
+  locales={
+     'LevelOne': '第一级',
+     'LevelTwo': '第二级',
+     'LevelThree': '第三级',
+  }
   GraphData={{
     "nodes": {
       "7766065713332071222": {
@@ -96,6 +103,8 @@ interface propsType {
     nodes: any; //圆的数据
     edges: any; //线的数据
   },
+  locales?: object;//传入的语言。
+  lang?: string;//传入的语种。
   graphUrl?: string;//图谱请求url。
   params?: {//图谱接口请求参数。
     step:number;//层级
