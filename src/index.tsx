@@ -75,23 +75,10 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [checked, setChecked] = useState<boolean>(false);
   //元素平移放大时保留的对象
   const [transform, setTransform] = useState<any>(null);
-   // 查找对应的文本信息
-   const getMessage = (str: string) => {
-    let key = lang
-    if(lang == 'cn') key = 'zh-CN'
-    const langObj = themelocales[key]
-    if (langObj && langObj[str]) {
-      return langObj[str];
-    } else {
-      return  themelocales['zh-CN'][str]
-    }
-  }
-  // 右下角显示隐藏操作
-  const [showNodes, setShowNodes] = useState<any>([
-    { name: getMessage('document'), type: 'file', color: '#deecff' },
-    { name: getMessage('theme'), type: 'topic', color: '#3d8c40' },
-    { name: getMessage('entity'), type: 'entity', color: '#f27530' },
-  ]);
+  // 用来存储语言
+  const [themelocales, setThemelocales] = useState<any>({ ...locales });
+  // 存储值
+  const [lang, setLang] = useState<string>('zh-CN');
   //保存层级
   const [hierarchyValue, setHierarchyValue] = useState<number>(2);
   //获取所有的主题色
@@ -102,11 +89,23 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [load, setLoad] = useState<boolean>(false);
   //控制暂无数据显示
   const [visible, $visible] = useState<boolean>(false);
-  // 用来存储语言
-  const [themelocales, setThemelocales] = useState<any>({ ...locales });
-  // 语音文件类别 
-  const [lang, setLang] = useState<string>('zh-CN');
-  
+ // 查找对应的文本信息
+ const getMessage = (str: string) => {
+  let key = lang
+  if (lang == 'cn') key = 'zh-CN'
+  const langObj = themelocales[key]
+  if (langObj && langObj[str]) {
+    return langObj[str];
+  } else {
+    return themelocales['zh-CN'][str]
+  }
+}
+// 右下角显示隐藏操作
+const [showNodes, setShowNodes] = useState<any>([
+  { name: getMessage('document'), type: 'file', color: '#deecff' },
+  { name: getMessage('theme'), type: 'topic', color: '#3d8c40' },
+  { name: getMessage('entity'), type: 'entity', color: '#f27530' },
+]);
   //d3力对象
   let forceSimulation: any = null;
   // 请求参数对象
@@ -218,12 +217,12 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   }, [params.width]);
 
   useEffect(() => {
-    if(typeof props?.lang == 'undefined' && typeof props?.locales == 'undefined') return
+    if (typeof props?.lang == 'undefined' && typeof props?.locales == 'undefined') return
     if (props?.lang && !isEmptyObject(props?.locales)) {
       updateLanguage(props.lang, props?.locales)
     } else if (!props?.lang && !isEmptyObject(props?.locales)) {
       updateLanguage('zh-CN', props?.locales)
-    } 
+    }
   }, [props?.locales, props?.lang])
 
   // 判断是否是null对象
