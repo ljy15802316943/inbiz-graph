@@ -1,4 +1,4 @@
-export const locales: any = {
+export const Locales: any = {
     'zh-CN': {
         'noDataInfo': '暂无数据',
         'interfaceException': '接口异常',

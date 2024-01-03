@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Switch, message, Spin, InputNumber } from 'antd';
 import * as d3 from 'd3';
-import { locales } from './locales'
+import { Locales } from './locales'
 import { objType, getNodes, getLinks, sort, getColor } from './components/utils';
 import axios from './components/axios';
 // import 'antd/dist/antd.min.css';
@@ -76,7 +76,7 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   //元素平移放大时保留的对象
   const [transform, setTransform] = useState<any>(null);
   // 用来存储语言
-  const [themelocales, setThemelocales] = useState<any>({ ...locales });
+  const [themelocales, setThemelocales] = useState<any>({ ...Locales });
   // 存储值
   const [lang, setLang] = useState<string>('zh-CN');
   //保存层级
@@ -217,18 +217,14 @@ const [showNodes, setShowNodes] = useState<any>([
   }, [params.width]);
 
   useEffect(() => {
-    if (typeof props?.lang == 'undefined' && typeof props?.locales == 'undefined') return
-    if (props?.lang && !isEmptyObject(props?.locales)) {
-      updateLanguage(props.lang, props?.locales)
-    } else if (!props?.lang && !isEmptyObject(props?.locales)) {
-      updateLanguage('zh-CN', props?.locales)
+    if(!props?.locales && !props?.lang) return
+    if (props?.lang) {
+      updateLanguage(props.lang, props?.locales ||{})
+    } else if (!props?.lang ) {
+      updateLanguage('zh-CN', props?.locales ||{})
     }
   }, [props?.locales, props?.lang])
-
-  // 判断是否是null对象
-  const isEmptyObject = (obj: any) => {
-    return Object.keys(obj).length === 0;
-  }
+  
   // 更新数据
   const updateLanguage = (targetlang: string, locales: any) => {
     if (targetlang == 'cn') targetlang = 'zh-CN';
