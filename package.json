@@ -1,5 +1,5 @@
 {
-  "version": "3.4.4",
+  "version": "3.4.5",
   "name": "inbiz-graph",
   "license": "MIT",
   "main": "dist/index.js",
