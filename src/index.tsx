@@ -459,7 +459,7 @@ const [showNodes, setShowNodes] = useState<any>([
               });
             } else {
               // 元素被删除完了，说明没有子节点了。
-              message.success('已加载全部子节点');
+              message.error(getMessage('allChildnodesLoaded'));
             }
           } else {
             //保存返回的数据，以后更新svg就是操作数据。
@@ -471,7 +471,7 @@ const [showNodes, setShowNodes] = useState<any>([
           }
           return;
         }
-        message.error(res.context || '接口异常');
+        message.error(getMessage('interfaceException'));
       })
   };
 
