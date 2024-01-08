@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Switch, message, Spin, InputNumber } from 'antd';
 import * as d3 from 'd3';
 import { Locales } from './locales'
@@ -89,23 +89,23 @@ export const InbizGraph: React.FC<propsType> = (props) => {
   const [load, setLoad] = useState<boolean>(false);
   //控制暂无数据显示
   const [visible, $visible] = useState<boolean>(false);
- // 查找对应的文本信息
- const getMessage = (str: string) => {
-  let key = lang
-  if (lang == 'cn') key = 'zh-CN'
-  const langObj = themelocales[key]
-  if (langObj && langObj[str]) {
-    return langObj[str];
-  } else {
-    return themelocales['zh-CN'][str]
-  }
-}
-// 右下角显示隐藏操作
-const [showNodes, setShowNodes] = useState<any>([
-  { name: getMessage('document'), type: 'file', color: '#deecff' },
-  { name: getMessage('theme'), type: 'topic', color: '#3d8c40' },
-  { name: getMessage('entity'), type: 'entity', color: '#f27530' },
-]);
+  // 查找对应的文本信息
+  const getMessage = useCallback((str: string) => {
+    let key = lang
+    if (lang == 'cn') key = 'zh-CN'
+    const langObj = themelocales[key]
+    if (langObj && langObj[str]) {
+      return langObj[str];
+    } else {
+      return themelocales['zh-CN'][str]
+    }
+  }, [lang])
+  // 右下角显示隐藏操作
+  const [showNodes, setShowNodes] = useState<any>([
+    { name: getMessage('document'), type: 'file', color: '#deecff' },
+    { name: getMessage('theme'), type: 'topic', color: '#3d8c40' },
+    { name: getMessage('entity'), type: 'entity', color: '#f27530' },
+  ]);
   //d3力对象
   let forceSimulation: any = null;
   // 请求参数对象
@@ -169,10 +169,12 @@ const [showNodes, setShowNodes] = useState<any>([
   };
 
   useEffect(() => {
-    if (!props.GraphData && props.params) {
-      getGraph2(props.params);
-    };
-  }, []);
+    if (props?.lang) {
+      updateLanguage(props.lang, props?.locales || {})
+    } else if (!props?.lang) {
+      updateLanguage('zh-CN', props?.locales || {})
+    }
+  }, [props])
 
   useEffect(() => {
     if ((props.GraphData || {}).nodes) {
@@ -216,15 +218,7 @@ const [showNodes, setShowNodes] = useState<any>([
     }
   }, [params.width]);
 
-  useEffect(() => {
-    if(!props?.locales && !props?.lang) return
-    if (props?.lang) {
-      updateLanguage(props.lang, props?.locales ||{})
-    } else if (!props?.lang ) {
-      updateLanguage('zh-CN', props?.locales ||{})
-    }
-  }, [props?.locales, props?.lang])
-  
+
   // 更新数据
   const updateLanguage = (targetlang: string, locales: any) => {
     if (targetlang == 'cn') targetlang = 'zh-CN';
@@ -245,6 +239,9 @@ const [showNodes, setShowNodes] = useState<any>([
         };
       }
     });
+    if (!props.GraphData && props.params) {
+      getGraph2(props.params);
+    };
   }
 
   // 事件列表
